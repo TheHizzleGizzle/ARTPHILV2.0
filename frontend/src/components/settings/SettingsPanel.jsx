@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, Key, Sun, Moon, Eye, EyeOff, Check, Zap } from 'lucide-react';
+import { X, Key, Sun, Moon, Eye, EyeOff, Check, Zap, Cpu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,16 +11,33 @@ import { toast } from 'sonner';
 
 const SETTINGS_KEY = 'metaprompt_settings';
 
+// Popular OpenRouter models for quick selection
+const OPENROUTER_MODELS = [
+  { value: 'openai/gpt-4o-mini', label: 'GPT-4o Mini (OpenAI)' },
+  { value: 'openai/gpt-4o', label: 'GPT-4o (OpenAI)' },
+  { value: 'anthropic/claude-3.5-sonnet', label: 'Claude 3.5 Sonnet' },
+  { value: 'anthropic/claude-3-haiku', label: 'Claude 3 Haiku' },
+  { value: 'google/gemini-pro-1.5', label: 'Gemini Pro 1.5' },
+  { value: 'google/gemini-flash-1.5', label: 'Gemini Flash 1.5' },
+  { value: 'meta-llama/llama-3.1-70b-instruct', label: 'Llama 3.1 70B' },
+  { value: 'meta-llama/llama-3.1-8b-instruct', label: 'Llama 3.1 8B' },
+  { value: 'mistralai/mistral-large', label: 'Mistral Large' },
+  { value: 'mistralai/mixtral-8x7b-instruct', label: 'Mixtral 8x7B' },
+  { value: 'custom', label: '✏️ Custom Model...' },
+];
+
 export function getSettings() {
   try {
     const settings = localStorage.getItem(SETTINGS_KEY);
     return settings ? JSON.parse(settings) : {
       apiKey: '',
       provider: 'openai',
+      model: '',
+      customModel: '',
       darkMode: false,
     };
   } catch {
-    return { apiKey: '', provider: 'openai', darkMode: false };
+    return { apiKey: '', provider: 'openai', model: '', customModel: '', darkMode: false };
   }
 }
 
@@ -32,6 +49,7 @@ export default function SettingsPanel({ onClose, onSettingsChange }) {
   const [settings, setSettings] = useState(getSettings());
   const [showKey, setShowKey] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [useCustomModel, setUseCustomModel] = useState(settings.model === 'custom' || (settings.customModel && !OPENROUTER_MODELS.find(m => m.value === settings.model)));
 
   useEffect(() => {
     // Apply dark mode on mount
