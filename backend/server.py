@@ -105,20 +105,46 @@ Write the complete prompt template:"""
     return prompt
 
 
-async def generate_with_llm(prompt: str) -> str:
-    """Generate prompt using Emergent LLM key (OpenAI compatible)."""
+# API Provider configurations
+API_PROVIDERS = {
+    "openai": {
+        "url": "https://api.openai.com/v1/chat/completions",
+        "model": "gpt-4o-mini",
+    },
+    "anthropic": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "model": "claude-3-haiku-20240307",
+    }
+}
+
+
+async def generate_with_llm(prompt: str, api_key: Optional[str] = None, provider: str = "openai") -> tuple[str, str]:
+    """Generate prompt using provided API key or fallback."""
     
-    if not EMERGENT_LLM_KEY:
-        # Fallback to template-based generation if no API key
-        return generate_fallback(prompt)
+    # Use provided key or fall back to Emergent key
+    key_to_use = api_key if api_key else EMERGENT_LLM_KEY
+    
+    if not key_to_use:
+        return generate_fallback(prompt), "fallback"
+    
+    provider_config = API_PROVIDERS.get(provider, API_PROVIDERS["openai"])
+    
+    if provider == "anthropic":
+        return await generate_with_anthropic(prompt, key_to_use, provider_config)
+    else:
+        return await generate_with_openai(prompt, key_to_use, provider_config)
+
+
+async def generate_with_openai(prompt: str, api_key: str, config: dict) -> tuple[str, str]:
+    """Generate using OpenAI-compatible API."""
     
     headers = {
-        "Authorization": f"Bearer {EMERGENT_LLM_KEY}",
+        "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json"
     }
     
     payload = {
-        "model": "gpt-4o-mini",
+        "model": config["model"],
         "messages": [
             {"role": "system", "content": METAPROMPT_SYSTEM},
             {"role": "user", "content": prompt}
@@ -129,14 +155,42 @@ async def generate_with_llm(prompt: str) -> str:
     
     async with httpx.AsyncClient(timeout=60.0) as client:
         try:
-            response = await client.post(LLM_API_URL, headers=headers, json=payload)
+            response = await client.post(config["url"], headers=headers, json=payload)
             response.raise_for_status()
             data = response.json()
-            return data["choices"][0]["message"]["content"]
+            return data["choices"][0]["message"]["content"], "openai"
         except Exception as e:
-            logging.error(f"LLM API error: {e}")
-            # Fallback to template-based generation
-            return generate_fallback(prompt)
+            logging.error(f"OpenAI API error: {e}")
+            return generate_fallback(prompt), "fallback"
+
+
+async def generate_with_anthropic(prompt: str, api_key: str, config: dict) -> tuple[str, str]:
+    """Generate using Anthropic Claude API."""
+    
+    headers = {
+        "x-api-key": api_key,
+        "anthropic-version": "2023-06-01",
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "model": config["model"],
+        "max_tokens": 2000,
+        "system": METAPROMPT_SYSTEM,
+        "messages": [
+            {"role": "user", "content": prompt}
+        ]
+    }
+    
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        try:
+            response = await client.post(config["url"], headers=headers, json=payload)
+            response.raise_for_status()
+            data = response.json()
+            return data["content"][0]["text"], "anthropic"
+        except Exception as e:
+            logging.error(f"Anthropic API error: {e}")
+            return generate_fallback(prompt), "fallback"
 
 
 def generate_fallback(prompt: str) -> str:
