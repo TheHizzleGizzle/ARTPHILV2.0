@@ -145,6 +145,7 @@ export default function SettingsPanel({ onClose, onSettingsChange }) {
                   <SelectContent>
                     <SelectItem value="openai">OpenAI (GPT-4o-mini)</SelectItem>
                     <SelectItem value="anthropic">Anthropic (Claude Haiku)</SelectItem>
+                    <SelectItem value="openrouter">OpenRouter (Multi-model)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
