@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, Search, BookOpen, Target, MessageSquare, FileText, Calculator, Code, Sparkles, PenTool, Languages, Shield, Briefcase, Lightbulb, Workflow } from 'lucide-react';
+import { X, Search, BookOpen, Target, MessageSquare, FileText, Calculator, Code, Sparkles, PenTool, Languages, Shield, Briefcase, Lightbulb, Workflow, Brain, Scale, Heart, Megaphone, Database, TestTube, Palette, Music, Camera, Users, TrendingUp, Clipboard, Zap, Globe, Lock, Award } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
