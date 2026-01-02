@@ -86,16 +86,26 @@ export default function MetapromptGenerator() {
   const handleGenerate = async () => {
     setIsGenerating(true);
     try {
-      const result = await generatePrompt(formData, BACKEND_URL);
-      setGeneratedPrompt(result);
-      updateFormData('instructions', result);
+      const result = await generatePrompt(formData, BACKEND_URL, settings);
+      setGeneratedPrompt(result.prompt);
+      updateFormData('instructions', result.prompt);
+      
+      // Show provider info
+      if (result.provider_used === 'openai') {
+        toast.success('Generated with OpenAI!');
+      } else if (result.provider_used === 'anthropic') {
+        toast.success('Generated with Claude!');
+      } else {
+        toast.success('Generated with template!');
+      }
       
       // Save to history
       const historyEntry = {
         id: Date.now(),
         task: formData.task,
         inputs: formData.inputs,
-        prompt: result,
+        prompt: result.prompt,
+        provider: result.provider_used,
         createdAt: new Date().toISOString(),
       };
       saveToHistory(historyEntry);
