@@ -17,17 +17,18 @@ MetaPrompt Generator is a wizard-based AI prompt engineering tool that helps use
    - Summary tab showing configuration breakdown
    - Toggle between Preview and Summary views
 
-3. **Prompt Library** (15 Templates)
-   - Pre-built templates across 8 categories:
-     - Customer Service: Support Agent, Complaint Handler
-     - Analysis: Sentence Comparison, Content Moderator
-     - Research: Document Q&A, Research Synthesizer
-     - Education: Socratic Math Tutor, Concept Explainer
-     - Development: Function Caller, Code Reviewer
-     - Creative: Content Summarizer, Creative Writer
-     - Translation: Language Translator
-     - Business: Email Composer, Process Documenter
-   - Category filtering and search
+3. **Prompt Library** (45+ Templates across 10 Categories)
+   - Pre-built templates organized by category:
+     - Customer Service (5): Support Agent, Complaint Handler, Feedback Collector, Onboarding Guide, Loyalty Program Expert
+     - Analysis (5): Sentence Comparison, Content Moderator, Sentiment Analyzer, Argument Evaluator, Bias Detector
+     - Research (5): Document Q&A, Research Synthesizer, Fact Checker, Data Interpreter, Literature Reviewer
+     - Education (5): Socratic Math Tutor, Concept Explainer, Quiz Generator, Study Guide Creator, Learning Path Designer
+     - Development (5): Function Caller, Code Reviewer, Security Auditor, Code Optimizer, API Documentation Writer
+     - Creative (5): Content Summarizer, Creative Writer, Marketing Copywriter, Story Generator, Brand Voice Developer
+     - Translation (3): Language Translator, Localization Expert, Technical Translator
+     - Business (7): Email Composer, Process Documenter, Business Analyst, Meeting Facilitator, Proposal Writer, Performance Reviewer, Contract Reviewer
+     - Data (5): SQL Query Writer, Report Generator, Insight Extractor, Metric Definer, Dashboard Designer
+   - Category filtering and search functionality
 
 4. **History Management**
    - Browser-based storage of generated prompts
