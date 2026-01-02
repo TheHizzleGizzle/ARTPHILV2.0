@@ -156,7 +156,11 @@ export default function SettingsPanel({ onClose, onSettingsChange }) {
                   <Input
                     id="apiKey"
                     type={showKey ? "text" : "password"}
-                    placeholder={settings.provider === "openai" ? "sk-..." : "sk-ant-..."}
+                    placeholder={
+                      settings.provider === "openai" ? "sk-..." : 
+                      settings.provider === "anthropic" ? "sk-ant-..." :
+                      settings.provider === "openrouter" ? "sk-or-..." : "Enter API key"
+                    }
                     value={settings.apiKey}
                     onChange={(e) => setSettings({ ...settings, apiKey: e.target.value })}
                     className="pr-10"
