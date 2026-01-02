@@ -337,15 +337,13 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Backend Integration - Prompt Generation"
-    - "Step 4 - Generate Instructions"
-    - "Prompt Library Modal"
-  stuck_tasks:
-    - "Backend Integration - Prompt Generation"
-    - "Step 4 - Generate Instructions"
-    - "Prompt Library Modal"
+    - "Dark Mode Toggle"
+    - "Settings Panel"
+    - "Expanded Prompt Library"
+    - "Complete Wizard Flow - Updated"
+  stuck_tasks: []
   test_all: false
-  test_priority: "stuck_first"
+  test_priority: "high_first"
 
 agent_communication:
   - agent: "testing"
