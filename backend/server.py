@@ -124,24 +124,30 @@ API_PROVIDERS = {
 }
 
 
-async def generate_with_llm(prompt: str, api_key: Optional[str] = None, provider: str = "openai") -> tuple[str, str]:
+async def generate_with_llm(prompt: str, api_key: Optional[str] = None, provider: str = "openai", model: Optional[str] = None) -> tuple[str, str, str]:
     """Generate prompt using provided API key or fallback."""
     
     # Use provided key or fall back to Emergent key
     key_to_use = api_key if api_key else EMERGENT_LLM_KEY
     
     if not key_to_use:
-        return generate_fallback(prompt), "fallback"
+        return generate_fallback(prompt), "fallback", "template"
     
     provider_config = API_PROVIDERS.get(provider, API_PROVIDERS["openai"])
     
+    # Use custom model if provided (mainly for OpenRouter)
+    if model and model != 'custom':
+        provider_config = {**provider_config, "model": model}
+    
     if provider == "anthropic":
-        return await generate_with_anthropic(prompt, key_to_use, provider_config)
+        result, prov = await generate_with_anthropic(prompt, key_to_use, provider_config)
+        return result, prov, provider_config["model"]
     elif provider == "openrouter":
-        return await generate_with_openrouter(prompt, key_to_use, provider_config)
+        result, prov = await generate_with_openrouter(prompt, key_to_use, provider_config)
+        return result, prov, provider_config["model"]
     else:
-        return await generate_with_openai(prompt, key_to_use, provider_config)
-
+        result, prov = await generate_with_openai(prompt, key_to_use, provider_config)
+        return result, prov, provider_config["model"]
 
 async def generate_with_openai(prompt: str, api_key: str, config: dict) -> tuple[str, str]:
     """Generate using OpenAI-compatible API."""
