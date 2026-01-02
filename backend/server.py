@@ -45,10 +45,13 @@ class PromptRequest(BaseModel):
     task: str
     inputs: List[str] = []
     structure: Optional[str] = None
+    api_key: Optional[str] = None  # BYOK - Bring Your Own Key
+    provider: Optional[str] = "openai"  # openai, anthropic
 
 class PromptResponse(BaseModel):
     prompt: str
     tokens_used: Optional[int] = None
+    provider_used: Optional[str] = None
 
 
 # System prompt for metaprompt generation
