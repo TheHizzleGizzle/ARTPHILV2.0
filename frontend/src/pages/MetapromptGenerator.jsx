@@ -11,6 +11,7 @@ import InstructionsStep from '@/components/wizard/InstructionsStep';
 import LivePreview from '@/components/preview/LivePreview';
 import PromptLibrary from '@/components/library/PromptLibrary';
 import HistoryPanel from '@/components/history/HistoryPanel';
+import SettingsPanel, { getSettings, saveSettings } from '@/components/settings/SettingsPanel';
 import { Button } from '@/components/ui/button';
 import { generatePrompt } from '@/services/promptService';
 import { saveToHistory, getHistory } from '@/services/historyService';
@@ -22,7 +23,9 @@ export default function MetapromptGenerator() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [showLibrary, setShowLibrary] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [settings, setSettings] = useState(getSettings());
   
   const [formData, setFormData] = useState({
     task: '',
@@ -36,7 +39,26 @@ export default function MetapromptGenerator() {
 
   useEffect(() => {
     setHistory(getHistory());
+    // Apply dark mode on mount
+    const savedSettings = getSettings();
+    setSettings(savedSettings);
+    if (savedSettings.darkMode) {
+      document.documentElement.classList.add('dark');
+    }
   }, []);
+
+  const handleToggleDarkMode = () => {
+    const newDarkMode = !settings.darkMode;
+    const newSettings = { ...settings, darkMode: newDarkMode };
+    setSettings(newSettings);
+    saveSettings(newSettings);
+    
+    if (newDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  };
 
   const steps = [
     { id: 0, title: 'Define Task', icon: '1' },
