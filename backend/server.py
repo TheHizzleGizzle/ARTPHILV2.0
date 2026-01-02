@@ -21,7 +21,7 @@ db = client[os.environ.get('DB_NAME', 'metaprompt_db')]
 
 # Emergent LLM configuration
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
-LLM_API_URL = "https://api.openai.com/v1/chat/completions"
+LLM_API_URL = "https://ai-gateway.emergent.sh/api/v1/chat/completions"
 
 # Create the main app without a prefix
 app = FastAPI()
