@@ -327,10 +327,11 @@ async def generate_prompt(request: PromptRequest):
         )
         
         # Generate using LLM with BYOK support
-        generated_prompt, provider_used = await generate_with_llm(
+        generated_prompt, provider_used, model_used = await generate_with_llm(
             generation_prompt,
             api_key=request.api_key,
-            provider=request.provider or "openai"
+            provider=request.provider or "openai",
+            model=request.model
         )
         
         # Save to database for analytics (optional)
@@ -340,10 +341,11 @@ async def generate_prompt(request: PromptRequest):
             "structure": request.structure,
             "generated_prompt": generated_prompt,
             "provider_used": provider_used,
+            "model_used": model_used,
             "timestamp": datetime.now(timezone.utc).isoformat()
         })
         
-        return PromptResponse(prompt=generated_prompt, provider_used=provider_used)
+        return PromptResponse(prompt=generated_prompt, provider_used=provider_used, model_used=model_used)
         
     except Exception as e:
         logging.error(f"Error generating prompt: {e}")
