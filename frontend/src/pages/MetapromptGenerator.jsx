@@ -383,6 +383,16 @@ export default function MetapromptGenerator() {
           />
         )}
       </AnimatePresence>
+
+      {/* Settings Modal */}
+      <AnimatePresence>
+        {showSettings && (
+          <SettingsPanel
+            onClose={() => setShowSettings(false)}
+            onSettingsChange={(newSettings) => setSettings(newSettings)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
