@@ -46,12 +46,14 @@ class PromptRequest(BaseModel):
     inputs: List[str] = []
     structure: Optional[str] = None
     api_key: Optional[str] = None  # BYOK - Bring Your Own Key
-    provider: Optional[str] = "openai"  # openai, anthropic
+    provider: Optional[str] = "openai"  # openai, anthropic, openrouter
+    model: Optional[str] = None  # Custom model for OpenRouter
 
 class PromptResponse(BaseModel):
     prompt: str
     tokens_used: Optional[int] = None
     provider_used: Optional[str] = None
+    model_used: Optional[str] = None
 
 
 # System prompt for metaprompt generation
