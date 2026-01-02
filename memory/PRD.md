@@ -43,6 +43,7 @@ MetaPrompt Generator is a wizard-based AI prompt engineering tool that helps use
    - BYOK (Bring Your Own Key) for AI API:
      - OpenAI (GPT-4o-mini) support
      - Anthropic (Claude Haiku) support
+     - OpenRouter (Multi-model) support
    - Local storage for API keys (never sent to servers)
 
 7. **Dark Mode**
