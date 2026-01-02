@@ -14,7 +14,7 @@ export default function TaskStep({ value, onChange }) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold text-foreground mb-2">What's your task?</h2>
+        <h2 className="text-2xl font-semibold text-foreground mb-2">What&apos;s your task?</h2>
         <p className="text-muted-foreground">
           Describe the task you want the AI assistant to perform. Be specific and clear.
         </p>
