@@ -1,10 +1,10 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, BookOpen, History, Zap } from 'lucide-react';
+import { Sparkles, BookOpen, History, Settings, Sun, Moon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
-export default function Header({ onShowLibrary, onShowHistory, historyCount }) {
+export default function Header({ onShowLibrary, onShowHistory, onShowSettings, historyCount, darkMode, onToggleDarkMode }) {
   return (
     <header className="sticky top-0 z-50 backdrop-blur-md bg-background/80 border-b border-border">
       <div className="container mx-auto px-4 py-4">
@@ -33,7 +33,7 @@ export default function Header({ onShowLibrary, onShowHistory, historyCount }) {
 
           {/* Actions */}
           <motion.div 
-            className="flex items-center gap-3"
+            className="flex items-center gap-2"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
           >
@@ -65,10 +65,29 @@ export default function Header({ onShowLibrary, onShowHistory, historyCount }) {
               )}
             </Button>
 
-            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary/50 text-secondary-foreground text-sm">
-              <Zap className="w-4 h-4" />
-              <span>AI-Powered</span>
-            </div>
+            {/* Dark Mode Toggle */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onToggleDarkMode}
+              className="h-8 w-8"
+            >
+              {darkMode ? (
+                <Sun className="w-4 h-4" />
+              ) : (
+                <Moon className="w-4 h-4" />
+              )}
+            </Button>
+
+            {/* Settings */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onShowSettings}
+              className="h-8 w-8"
+            >
+              <Settings className="w-4 h-4" />
+            </Button>
           </motion.div>
         </div>
       </div>
