@@ -277,21 +277,18 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Header Component with Logo and Navigation"
-    - "Wizard Steps Progress Bar"
-    - "Step 1 - Define Task"
-    - "Step 2 - Add Inputs"
-    - "Step 3 - Plan Structure"
-    - "Step 4 - Generate Instructions"
-    - "Live Preview Panel"
-    - "Prompt Library Modal"
-    - "History Panel"
-    - "Copy and Download Functionality"
     - "Backend Integration - Prompt Generation"
-  stuck_tasks: []
-  test_all: true
-  test_priority: "sequential"
+    - "Step 4 - Generate Instructions"
+    - "Prompt Library Modal"
+  stuck_tasks:
+    - "Backend Integration - Prompt Generation"
+    - "Step 4 - Generate Instructions"
+    - "Prompt Library Modal"
+  test_all: false
+  test_priority: "stuck_first"
 
 agent_communication:
   - agent: "testing"
     message: "Starting comprehensive testing of MetaPrompt Generator application. Will test all wizard steps, modals, and integrations systematically."
+  - agent: "testing"
+    message: "TESTING COMPLETE: Most UI components working correctly. Critical issues found: 1) OpenAI API 401 error preventing prompt generation, 2) Library modal overlay interference with navigation. Backend fallback mechanism not functioning properly. Need to fix API key and modal overlay issues."
