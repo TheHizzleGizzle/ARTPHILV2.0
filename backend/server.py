@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, HTTPException
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -6,10 +6,10 @@ import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
-from typing import List
+from typing import List, Optional
 import uuid
 from datetime import datetime, timezone
-
+import httpx
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -17,7 +17,11 @@ load_dotenv(ROOT_DIR / '.env')
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+db = client[os.environ.get('DB_NAME', 'metaprompt_db')]
+
+# Emergent LLM configuration
+EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
+LLM_API_URL = "https://api.openai.com/v1/chat/completions"
 
 # Create the main app without a prefix
 app = FastAPI()
@@ -28,7 +32,7 @@ api_router = APIRouter(prefix="/api")
 
 # Define Models
 class StatusCheck(BaseModel):
-    model_config = ConfigDict(extra="ignore")  # Ignore MongoDB's _id field
+    model_config = ConfigDict(extra="ignore")
     
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     client_name: str
@@ -37,34 +41,230 @@ class StatusCheck(BaseModel):
 class StatusCheckCreate(BaseModel):
     client_name: str
 
-# Add your routes to the router instead of directly to app
+class PromptRequest(BaseModel):
+    task: str
+    inputs: List[str] = []
+    structure: Optional[str] = None
+
+class PromptResponse(BaseModel):
+    prompt: str
+    tokens_used: Optional[int] = None
+
+
+# System prompt for metaprompt generation
+METAPROMPT_SYSTEM = """You are an expert prompt engineer. Your job is to write detailed, effective instructions for AI assistants based on task descriptions.
+
+When given a task description, input variables, and optional structure preferences, create comprehensive prompt instructions that will help the AI assistant perform the task consistently and accurately.
+
+Follow these guidelines:
+1. Start with clear role/context setting
+2. Include specific rules and constraints
+3. Use the provided input variables in {$VARIABLE_NAME} format
+4. Add examples when helpful
+5. Specify output format clearly
+6. Use XML tags for structure when appropriate
+7. For complex reasoning tasks, include scratchpad/thinking sections
+
+Your output should be the complete prompt template that can be used directly."""
+
+
+def build_generation_prompt(task: str, inputs: List[str], structure: Optional[str]) -> str:
+    """Build the prompt for the LLM to generate metaprompt instructions."""
+    
+    prompt = f"""Create detailed AI assistant instructions for the following task:
+
+<Task>
+{task}
+</Task>
+
+<Inputs>
+{chr(10).join([f'{{${inp}}}' for inp in inputs]) if inputs else 'No specific input variables defined - determine appropriate ones based on the task.'}
+</Inputs>
+
+"""
+    
+    if structure:
+        prompt += f"""<Preferred Structure>
+{structure}
+</Preferred Structure>
+
+"""
+    
+    prompt += """Now write comprehensive instructions for an AI assistant to complete this task. Include:
+1. Clear role definition and context
+2. Important rules and constraints  
+3. Input variable placements
+4. Examples if helpful
+5. Output format specification
+
+Write the complete prompt template:"""
+    
+    return prompt
+
+
+async def generate_with_llm(prompt: str) -> str:
+    """Generate prompt using Emergent LLM key (OpenAI compatible)."""
+    
+    if not EMERGENT_LLM_KEY:
+        # Fallback to template-based generation if no API key
+        return generate_fallback(prompt)
+    
+    headers = {
+        "Authorization": f"Bearer {EMERGENT_LLM_KEY}",
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "model": "gpt-4o-mini",
+        "messages": [
+            {"role": "system", "content": METAPROMPT_SYSTEM},
+            {"role": "user", "content": prompt}
+        ],
+        "max_tokens": 2000,
+        "temperature": 0.7
+    }
+    
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        try:
+            response = await client.post(LLM_API_URL, headers=headers, json=payload)
+            response.raise_for_status()
+            data = response.json()
+            return data["choices"][0]["message"]["content"]
+        except Exception as e:
+            logging.error(f"LLM API error: {e}")
+            # Fallback to template-based generation
+            return generate_fallback(prompt)
+
+
+def generate_fallback(prompt: str) -> str:
+    """Generate a template-based prompt when LLM is not available."""
+    
+    # Extract task and inputs from the prompt
+    task_start = prompt.find("<Task>") + 6
+    task_end = prompt.find("</Task>")
+    task = prompt[task_start:task_end].strip() if task_start > 5 and task_end > 0 else "the specified task"
+    
+    inputs_start = prompt.find("<Inputs>") + 8
+    inputs_end = prompt.find("</Inputs>")
+    inputs_text = prompt[inputs_start:inputs_end].strip() if inputs_start > 7 and inputs_end > 0 else ""
+    
+    # Parse inputs
+    inputs = []
+    if inputs_text and "No specific input" not in inputs_text:
+        import re
+        inputs = re.findall(r'\{\$(\w+)\}', inputs_text)
+    
+    # Build template
+    template = f"""You will be acting as an AI assistant to help with the following task.
+
+<Task>
+{task}
+</Task>
+
+"""
+    
+    if inputs:
+        template += """Here are the input variables you will work with:
+<Inputs>
+"""
+        for inp in inputs:
+            template += f"{{${inp}}}\n"
+        template += """</Inputs>
+
+"""
+    
+    template += """Important rules for the interaction:
+- Stay focused on the task at hand
+- Be clear and precise in your responses
+- If you're unsure about something, ask for clarification
+- Follow any specific formatting requirements mentioned in the task
+
+"""
+    
+    if inputs:
+        template += """When processing the inputs:
+"""
+        for inp in inputs:
+            template += f"- Use the {{${inp}}} value as provided\n"
+        template += "\n"
+    
+    template += """Think through your response carefully before providing it. If the task requires reasoning, show your work in <thinking></thinking> tags before giving your final answer.
+
+Provide your response in a clear, structured format appropriate for the task.
+
+BEGIN TASK
+
+"""
+    
+    if inputs:
+        for inp in inputs:
+            template += f"{{${inp}}}\n\n"
+    
+    return template
+
+
+# Add your routes to the router
 @api_router.get("/")
 async def root():
-    return {"message": "Hello World"}
+    return {"message": "MetaPrompt Generator API"}
+
+
+@api_router.post("/generate-prompt", response_model=PromptResponse)
+async def generate_prompt(request: PromptRequest):
+    """Generate AI prompt instructions based on task description."""
+    
+    if not request.task or len(request.task.strip()) < 10:
+        raise HTTPException(status_code=400, detail="Task description must be at least 10 characters")
+    
+    try:
+        # Build the generation prompt
+        generation_prompt = build_generation_prompt(
+            task=request.task,
+            inputs=request.inputs,
+            structure=request.structure
+        )
+        
+        # Generate using LLM
+        generated_prompt = await generate_with_llm(generation_prompt)
+        
+        # Save to database for analytics (optional)
+        await db.generated_prompts.insert_one({
+            "task": request.task,
+            "inputs": request.inputs,
+            "structure": request.structure,
+            "generated_prompt": generated_prompt,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+        
+        return PromptResponse(prompt=generated_prompt)
+        
+    except Exception as e:
+        logging.error(f"Error generating prompt: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate prompt")
+
 
 @api_router.post("/status", response_model=StatusCheck)
 async def create_status_check(input: StatusCheckCreate):
     status_dict = input.model_dump()
     status_obj = StatusCheck(**status_dict)
     
-    # Convert to dict and serialize datetime to ISO string for MongoDB
     doc = status_obj.model_dump()
     doc['timestamp'] = doc['timestamp'].isoformat()
     
     _ = await db.status_checks.insert_one(doc)
     return status_obj
 
+
 @api_router.get("/status", response_model=List[StatusCheck])
 async def get_status_checks():
-    # Exclude MongoDB's _id field from the query results
     status_checks = await db.status_checks.find({}, {"_id": 0}).to_list(1000)
     
-    # Convert ISO string timestamps back to datetime objects
     for check in status_checks:
         if isinstance(check['timestamp'], str):
             check['timestamp'] = datetime.fromisoformat(check['timestamp'])
     
     return status_checks
+
 
 # Include the router in the main app
 app.include_router(api_router)
