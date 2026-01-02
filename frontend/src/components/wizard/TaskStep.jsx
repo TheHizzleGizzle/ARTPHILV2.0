@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 const suggestions = [
   { icon: Target, text: "Act as a customer support agent" },
   { icon: MessageSquare, text: "Check if two sentences mean the same" },
-  { icon: Lightbulb, text: "Answer questions from a document" },
+  { icon: Lightbulb, text: "Answer questions about a document" },
 ];
 
 export default function TaskStep({ value, onChange }) {
