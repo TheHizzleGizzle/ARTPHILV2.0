@@ -114,6 +114,10 @@ API_PROVIDERS = {
     "anthropic": {
         "url": "https://api.anthropic.com/v1/messages",
         "model": "claude-3-haiku-20240307",
+    },
+    "openrouter": {
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "model": "openai/gpt-4o-mini",
     }
 }
 
@@ -131,6 +135,8 @@ async def generate_with_llm(prompt: str, api_key: Optional[str] = None, provider
     
     if provider == "anthropic":
         return await generate_with_anthropic(prompt, key_to_use, provider_config)
+    elif provider == "openrouter":
+        return await generate_with_openrouter(prompt, key_to_use, provider_config)
     else:
         return await generate_with_openai(prompt, key_to_use, provider_config)
 
@@ -161,6 +167,37 @@ async def generate_with_openai(prompt: str, api_key: str, config: dict) -> tuple
             return data["choices"][0]["message"]["content"], "openai"
         except Exception as e:
             logging.error(f"OpenAI API error: {e}")
+            return generate_fallback(prompt), "fallback"
+
+
+async def generate_with_openrouter(prompt: str, api_key: str, config: dict) -> tuple[str, str]:
+    """Generate using OpenRouter API."""
+    
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://metaprompt.app",
+        "X-Title": "MetaPrompt Generator"
+    }
+    
+    payload = {
+        "model": config["model"],
+        "messages": [
+            {"role": "system", "content": METAPROMPT_SYSTEM},
+            {"role": "user", "content": prompt}
+        ],
+        "max_tokens": 2000,
+        "temperature": 0.7
+    }
+    
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        try:
+            response = await client.post(config["url"], headers=headers, json=payload)
+            response.raise_for_status()
+            data = response.json()
+            return data["choices"][0]["message"]["content"], "openrouter"
+        except Exception as e:
+            logging.error(f"OpenRouter API error: {e}")
             return generate_fallback(prompt), "fallback"
 
 
