@@ -155,7 +155,10 @@ export default function SettingsPanel({ onClose, onSettingsChange }) {
                 <Label htmlFor="provider">Provider</Label>
                 <Select
                   value={settings.provider}
-                  onValueChange={(value) => setSettings({ ...settings, provider: value })}
+                  onValueChange={(value) => {
+                    setSettings({ ...settings, provider: value, model: '', customModel: '' });
+                    setUseCustomModel(false);
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select provider" />
@@ -167,6 +170,57 @@ export default function SettingsPanel({ onClose, onSettingsChange }) {
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* OpenRouter Model Selection */}
+              {settings.provider === 'openrouter' && (
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="model" className="flex items-center gap-2">
+                      <Cpu className="w-3 h-3" />
+                      Model
+                    </Label>
+                    <Select
+                      value={useCustomModel ? 'custom' : (settings.model || 'openai/gpt-4o-mini')}
+                      onValueChange={(value) => {
+                        if (value === 'custom') {
+                          setUseCustomModel(true);
+                          setSettings({ ...settings, model: 'custom' });
+                        } else {
+                          setUseCustomModel(false);
+                          setSettings({ ...settings, model: value, customModel: '' });
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select model" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {OPENROUTER_MODELS.map((model) => (
+                          <SelectItem key={model.value} value={model.value}>
+                            {model.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Custom Model Input */}
+                  {useCustomModel && (
+                    <div className="space-y-2">
+                      <Label htmlFor="customModel">Custom Model ID</Label>
+                      <Input
+                        id="customModel"
+                        placeholder="e.g., openai/gpt-4-turbo, anthropic/claude-3-opus"
+                        value={settings.customModel}
+                        onChange={(e) => setSettings({ ...settings, customModel: e.target.value })}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Enter any model from <a href="https://openrouter.ai/models" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">openrouter.ai/models</a>
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="apiKey">API Key</Label>
