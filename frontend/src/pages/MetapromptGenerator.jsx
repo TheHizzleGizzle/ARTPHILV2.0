@@ -252,7 +252,10 @@ export default function MetapromptGenerator() {
       <Header
         onShowLibrary={() => setShowLibrary(true)}
         onShowHistory={() => setShowHistory(true)}
+        onShowSettings={() => setShowSettings(true)}
         historyCount={history.length}
+        darkMode={settings.darkMode}
+        onToggleDarkMode={handleToggleDarkMode}
       />
 
       <main className="container mx-auto px-4 pt-6 relative z-10">
