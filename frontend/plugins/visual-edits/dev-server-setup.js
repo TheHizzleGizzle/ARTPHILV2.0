@@ -3,7 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 const express = require("express");
-const { execSync } = require("child_process");
+const { execSync, execFileSync } = require("child_process");
 
 // 🔍 Read Supervisor code-server password from conf.d
 function getCodeServerPassword() {
@@ -473,8 +473,19 @@ function setupDevServer(config) {
           const timestamp = Date.now();
           try {
             // Use -c flag for per-invocation git config to avoid modifying any config
-            execSync(`git -c user.name="visual-edit" -c user.email="support@emergent.sh" add "${targetFile}"`);
-            execSync(`git -c user.name="visual-edit" -c user.email="support@emergent.sh" commit -m "visual_edit_${timestamp}"`);
+            execFileSync("git", [
+              "-c", "user.name=visual-edit",
+              "-c", "user.email=support@emergent.sh",
+              "add",
+              targetFile
+            ]);
+            execFileSync("git", [
+              "-c", "user.name=visual-edit",
+              "-c", "user.email=support@emergent.sh",
+              "commit",
+              "-m",
+              `visual_edit_${timestamp}`
+            ]);
           } catch (gitError) {
             console.error(`Git commit failed: ${gitError.message}`);
             // Continue even if git fails - file write succeeded
