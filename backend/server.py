@@ -1,26 +1,28 @@
-from fastapi import FastAPI, APIRouter, HTTPException
-from dotenv import load_dotenv
-from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
-import os
 import logging
-from pathlib import Path
-from pydantic import BaseModel, Field, ConfigDict
-from typing import List, Optional
+import os
+import re
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
+from typing import List, Optional
+
 import httpx
+from dotenv import load_dotenv
+from fastapi import APIRouter, FastAPI, HTTPException
+from motor.motor_asyncio import AsyncIOMotorClient
+from pydantic import BaseModel, ConfigDict, Field
+from starlette.middleware.cors import CORSMiddleware
 
 ROOT_DIR = Path(__file__).parent
-load_dotenv(ROOT_DIR / '.env')
+load_dotenv(ROOT_DIR / ".env")
 
 # MongoDB connection
-mongo_url = os.environ['MONGO_URL']
+mongo_url = os.environ["MONGO_URL"]
 client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ.get('DB_NAME', 'metaprompt_db')]
+db = client[os.environ.get("DB_NAME", "metaprompt_db")]
 
 # Emergent LLM configuration
-EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
+EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "")
 LLM_API_URL = "https://ai-gateway.emergent.sh/api/v1/chat/completions"
 
 # Create the main app without a prefix
@@ -33,13 +35,15 @@ api_router = APIRouter(prefix="/api")
 # Define Models
 class StatusCheck(BaseModel):
     model_config = ConfigDict(extra="ignore")
-    
+
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     client_name: str
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+
 class StatusCheckCreate(BaseModel):
     client_name: str
+
 
 class PromptRequest(BaseModel):
     task: str
@@ -48,6 +52,7 @@ class PromptRequest(BaseModel):
     api_key: Optional[str] = None  # BYOK - Bring Your Own Key
     provider: Optional[str] = "openai"  # openai, anthropic, openrouter
     model: Optional[str] = None  # Custom model for OpenRouter
+
 
 class PromptResponse(BaseModel):
     prompt: str
@@ -73,9 +78,11 @@ Follow these guidelines:
 Your output should be the complete prompt template that can be used directly."""
 
 
-def build_generation_prompt(task: str, inputs: List[str], structure: Optional[str]) -> str:
+def build_generation_prompt(
+    task: str, inputs: List[str], structure: Optional[str]
+) -> str:
     """Build the prompt for the LLM to generate metaprompt instructions."""
-    
+
     prompt = f"""Create detailed AI assistant instructions for the following task:
 
 <Task>
@@ -87,14 +94,14 @@ def build_generation_prompt(task: str, inputs: List[str], structure: Optional[st
 </Inputs>
 
 """
-    
+
     if structure:
         prompt += f"""<Preferred Structure>
 {structure}
 </Preferred Structure>
 
 """
-    
+
     prompt += """Now write comprehensive instructions for an AI assistant to complete this task. Include:
 1. Clear role definition and context
 2. Important rules and constraints  
@@ -103,7 +110,7 @@ def build_generation_prompt(task: str, inputs: List[str], structure: Optional[st
 5. Output format specification
 
 Write the complete prompt template:"""
-    
+
     return prompt
 
 
@@ -120,53 +127,62 @@ API_PROVIDERS = {
     "openrouter": {
         "url": "https://openrouter.ai/api/v1/chat/completions",
         "model": "openai/gpt-4o-mini",
-    }
+    },
 }
 
 
-async def generate_with_llm(prompt: str, api_key: Optional[str] = None, provider: str = "openai", model: Optional[str] = None) -> tuple[str, str, str]:
+async def generate_with_llm(
+    prompt: str,
+    api_key: Optional[str] = None,
+    provider: str = "openai",
+    model: Optional[str] = None,
+) -> tuple[str, str, str]:
     """Generate prompt using provided API key or fallback."""
-    
+
     # Use provided key or fall back to Emergent key
     key_to_use = api_key if api_key else EMERGENT_LLM_KEY
-    
+
     if not key_to_use:
         return generate_fallback(prompt), "fallback", "template"
-    
+
     provider_config = API_PROVIDERS.get(provider, API_PROVIDERS["openai"])
-    
+
     # Use custom model if provided (mainly for OpenRouter)
-    if model and model != 'custom':
+    if model and model != "custom":
         provider_config = {**provider_config, "model": model}
-    
+
     if provider == "anthropic":
-        result, prov = await generate_with_anthropic(prompt, key_to_use, provider_config)
+        result, prov = await generate_with_anthropic(
+            prompt, key_to_use, provider_config
+        )
         return result, prov, provider_config["model"]
     elif provider == "openrouter":
-        result, prov = await generate_with_openrouter(prompt, key_to_use, provider_config)
+        result, prov = await generate_with_openrouter(
+            prompt, key_to_use, provider_config
+        )
         return result, prov, provider_config["model"]
     else:
         result, prov = await generate_with_openai(prompt, key_to_use, provider_config)
         return result, prov, provider_config["model"]
 
-async def generate_with_openai(prompt: str, api_key: str, config: dict) -> tuple[str, str]:
+
+async def generate_with_openai(
+    prompt: str, api_key: str, config: dict
+) -> tuple[str, str]:
     """Generate using OpenAI-compatible API."""
-    
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
-    
+
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+
     payload = {
         "model": config["model"],
         "messages": [
             {"role": "system", "content": METAPROMPT_SYSTEM},
-            {"role": "user", "content": prompt}
+            {"role": "user", "content": prompt},
         ],
         "max_tokens": 2000,
-        "temperature": 0.7
+        "temperature": 0.7,
     }
-    
+
     async with httpx.AsyncClient(timeout=60.0) as client:
         try:
             response = await client.post(config["url"], headers=headers, json=payload)
@@ -178,26 +194,28 @@ async def generate_with_openai(prompt: str, api_key: str, config: dict) -> tuple
             return generate_fallback(prompt), "fallback"
 
 
-async def generate_with_openrouter(prompt: str, api_key: str, config: dict) -> tuple[str, str]:
+async def generate_with_openrouter(
+    prompt: str, api_key: str, config: dict
+) -> tuple[str, str]:
     """Generate using OpenRouter API."""
-    
+
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
         "HTTP-Referer": "https://metaprompt.app",
-        "X-Title": "MetaPrompt Generator"
+        "X-Title": "MetaPrompt Generator",
     }
-    
+
     payload = {
         "model": config["model"],
         "messages": [
             {"role": "system", "content": METAPROMPT_SYSTEM},
-            {"role": "user", "content": prompt}
+            {"role": "user", "content": prompt},
         ],
         "max_tokens": 2000,
-        "temperature": 0.7
+        "temperature": 0.7,
     }
-    
+
     async with httpx.AsyncClient(timeout=60.0) as client:
         try:
             response = await client.post(config["url"], headers=headers, json=payload)
@@ -209,24 +227,24 @@ async def generate_with_openrouter(prompt: str, api_key: str, config: dict) -> t
             return generate_fallback(prompt), "fallback"
 
 
-async def generate_with_anthropic(prompt: str, api_key: str, config: dict) -> tuple[str, str]:
+async def generate_with_anthropic(
+    prompt: str, api_key: str, config: dict
+) -> tuple[str, str]:
     """Generate using Anthropic Claude API."""
-    
+
     headers = {
         "x-api-key": api_key,
         "anthropic-version": "2023-06-01",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
-    
+
     payload = {
         "model": config["model"],
         "max_tokens": 2000,
         "system": METAPROMPT_SYSTEM,
-        "messages": [
-            {"role": "user", "content": prompt}
-        ]
+        "messages": [{"role": "user", "content": prompt}],
     }
-    
+
     async with httpx.AsyncClient(timeout=60.0) as client:
         try:
             response = await client.post(config["url"], headers=headers, json=payload)
@@ -240,22 +258,29 @@ async def generate_with_anthropic(prompt: str, api_key: str, config: dict) -> tu
 
 def generate_fallback(prompt: str) -> str:
     """Generate a template-based prompt when LLM is not available."""
-    
+
     # Extract task and inputs from the prompt
     task_start = prompt.find("<Task>") + 6
     task_end = prompt.find("</Task>")
-    task = prompt[task_start:task_end].strip() if task_start > 5 and task_end > 0 else "the specified task"
-    
+    task = (
+        prompt[task_start:task_end].strip()
+        if task_start > 5 and task_end > 0
+        else "the specified task"
+    )
+
     inputs_start = prompt.find("<Inputs>") + 8
     inputs_end = prompt.find("</Inputs>")
-    inputs_text = prompt[inputs_start:inputs_end].strip() if inputs_start > 7 and inputs_end > 0 else ""
-    
+    inputs_text = (
+        prompt[inputs_start:inputs_end].strip()
+        if inputs_start > 7 and inputs_end > 0
+        else ""
+    )
+
     # Parse inputs
     inputs = []
     if inputs_text and "No specific input" not in inputs_text:
-        import re
-        inputs = re.findall(r'\{\$(\w+)\}', inputs_text)
-    
+        inputs = re.findall(r"\{\$(\w+)\}", inputs_text)
+
     # Build template
     template = f"""You will be acting as an AI assistant to help with the following task.
 
@@ -264,7 +289,7 @@ def generate_fallback(prompt: str) -> str:
 </Task>
 
 """
-    
+
     if inputs:
         template += """Here are the input variables you will work with:
 <Inputs>
@@ -274,7 +299,7 @@ def generate_fallback(prompt: str) -> str:
         template += """</Inputs>
 
 """
-    
+
     template += """Important rules for the interaction:
 - Stay focused on the task at hand
 - Be clear and precise in your responses
@@ -282,14 +307,14 @@ def generate_fallback(prompt: str) -> str:
 - Follow any specific formatting requirements mentioned in the task
 
 """
-    
+
     if inputs:
         template += """When processing the inputs:
 """
         for inp in inputs:
             template += f"- Use the {{${inp}}} value as provided\n"
         template += "\n"
-    
+
     template += """Think through your response carefully before providing it. If the task requires reasoning, show your work in <thinking></thinking> tags before giving your final answer.
 
 Provide your response in a clear, structured format appropriate for the task.
@@ -297,11 +322,11 @@ Provide your response in a clear, structured format appropriate for the task.
 BEGIN TASK
 
 """
-    
+
     if inputs:
         for inp in inputs:
             template += f"{{${inp}}}\n\n"
-    
+
     return template
 
 
@@ -314,39 +339,43 @@ async def root():
 @api_router.post("/generate-prompt", response_model=PromptResponse)
 async def generate_prompt(request: PromptRequest):
     """Generate AI prompt instructions based on task description."""
-    
+
     if not request.task or len(request.task.strip()) < 10:
-        raise HTTPException(status_code=400, detail="Task description must be at least 10 characters")
-    
+        raise HTTPException(
+            status_code=400, detail="Task description must be at least 10 characters"
+        )
+
     try:
         # Build the generation prompt
         generation_prompt = build_generation_prompt(
-            task=request.task,
-            inputs=request.inputs,
-            structure=request.structure
+            task=request.task, inputs=request.inputs, structure=request.structure
         )
-        
+
         # Generate using LLM with BYOK support
         generated_prompt, provider_used, model_used = await generate_with_llm(
             generation_prompt,
             api_key=request.api_key,
             provider=request.provider or "openai",
-            model=request.model
+            model=request.model,
         )
-        
+
         # Save to database for analytics (optional)
-        await db.generated_prompts.insert_one({
-            "task": request.task,
-            "inputs": request.inputs,
-            "structure": request.structure,
-            "generated_prompt": generated_prompt,
-            "provider_used": provider_used,
-            "model_used": model_used,
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        })
-        
-        return PromptResponse(prompt=generated_prompt, provider_used=provider_used, model_used=model_used)
-        
+        await db.generated_prompts.insert_one(
+            {
+                "task": request.task,
+                "inputs": request.inputs,
+                "structure": request.structure,
+                "generated_prompt": generated_prompt,
+                "provider_used": provider_used,
+                "model_used": model_used,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+        )
+
+        return PromptResponse(
+            prompt=generated_prompt, provider_used=provider_used, model_used=model_used
+        )
+
     except Exception as e:
         logging.error(f"Error generating prompt: {e}")
         raise HTTPException(status_code=500, detail="Failed to generate prompt")
@@ -356,10 +385,10 @@ async def generate_prompt(request: PromptRequest):
 async def create_status_check(input: StatusCheckCreate):
     status_dict = input.model_dump()
     status_obj = StatusCheck(**status_dict)
-    
+
     doc = status_obj.model_dump()
-    doc['timestamp'] = doc['timestamp'].isoformat()
-    
+    doc["timestamp"] = doc["timestamp"].isoformat()
+
     _ = await db.status_checks.insert_one(doc)
     return status_obj
 
@@ -367,11 +396,11 @@ async def create_status_check(input: StatusCheckCreate):
 @api_router.get("/status", response_model=List[StatusCheck])
 async def get_status_checks():
     status_checks = await db.status_checks.find({}, {"_id": 0}).to_list(1000)
-    
+
     for check in status_checks:
-        if isinstance(check['timestamp'], str):
-            check['timestamp'] = datetime.fromisoformat(check['timestamp'])
-    
+        if isinstance(check["timestamp"], str):
+            check["timestamp"] = datetime.fromisoformat(check["timestamp"])
+
     return status_checks
 
 
@@ -381,17 +410,17 @@ app.include_router(api_router)
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_origins=os.environ.get("CORS_ORIGINS", "*").split(","),
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
